@@ -32,10 +32,27 @@ async function run() {
         // await client.connect();
         const productsCollection = client.db('OrganStore').collection('Products')
 
-        // Get all Products data from db
+        // Get all Products data from db + pagination
         app.get('/products', async (req, res) => {
-            const result = await productsCollection.find().toArray();
-            res.send(result);
+            const page = parseInt(req.query.page) || 1; 
+            const limit = parseInt(req.query.limit) || 12;
+            const skip = (page - 1) * limit;
+
+            const totalProducts = await productsCollection.countDocuments();
+            const totalPages = Math.ceil(totalProducts / limit); 
+
+            const products = await productsCollection
+                .find()
+                .skip(skip)
+                .limit(limit)
+                .toArray();
+
+            res.send({
+                products,
+                totalPages,
+                currentPage: page,
+                totalProducts,
+            });
         });
 
 
