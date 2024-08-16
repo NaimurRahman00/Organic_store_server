@@ -30,7 +30,7 @@ async function run() {
     try {
         const productsCollection = client.db('OrganStore').collection('Products');
 
-        // Get all Products data from db + pagination + conditional sorting + search
+        // Get all Products data from db + pagination + conditional sorting + search + filters
         app.get('/products', async (req, res) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 12;
@@ -39,23 +39,41 @@ async function run() {
             const sortBy = req.query.sortBy;
             const order = req.query.order === 'asc' ? 1 : -1;
 
-            const searchQuery = req.query.search || ''; 
+            const searchQuery = req.query.search || '';
+            const brandNames = req.query.brands ? req.query.brands.split(',') : [];
+            const categories = req.query.categories ? req.query.categories.split(',') : [];
+            const minPrice = parseFloat(req.query.minPrice) || 0;
+            const maxPrice = parseFloat(req.query.maxPrice) || Infinity;
 
             const sortOptions = {};
             if (sortBy) {
                 sortOptions[sortBy] = order;
             }
 
-            // Search filter
+            // Search and filter criteria
             const searchFilter = searchQuery
                 ? { productName: { $regex: searchQuery, $options: 'i' } }
                 : {};
+            
+            const filterOptions = {
+                ...searchFilter,
+                brand: { $in: brandNames.length > 0 ? brandNames : [] },
+                category: { $in: categories.length > 0 ? categories : [] },
+                price: { $gte: minPrice, $lte: maxPrice },
+            };
 
-            const totalProducts = await productsCollection.countDocuments(searchFilter);
+            // Remove empty filters
+            for (const key in filterOptions) {
+                if (filterOptions[key] === (key === 'brand' || key === 'category' ? [] : { $lte: Infinity })) {
+                    delete filterOptions[key];
+                }
+            }
+
+            const totalProducts = await productsCollection.countDocuments(filterOptions);
             const totalPages = Math.ceil(totalProducts / limit);
 
             const products = await productsCollection
-                .find(searchFilter)
+                .find(filterOptions)
                 .sort(sortOptions)
                 .skip(skip)
                 .limit(limit)
