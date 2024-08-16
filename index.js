@@ -30,26 +30,33 @@ async function run() {
     try {
         const productsCollection = client.db('OrganStore').collection('Products');
 
-        // Get all Products data from db + pagination + conditional sorting
+        // Get all Products data from db + pagination + conditional sorting + search
         app.get('/products', async (req, res) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 12;
             const skip = (page - 1) * limit;
 
-            const sortBy = req.query.sortBy; 
+            const sortBy = req.query.sortBy;
             const order = req.query.order === 'asc' ? 1 : -1;
+
+            const searchQuery = req.query.search || ''; 
 
             const sortOptions = {};
             if (sortBy) {
                 sortOptions[sortBy] = order;
             }
 
-            const totalProducts = await productsCollection.countDocuments();
+            // Search filter
+            const searchFilter = searchQuery
+                ? { productName: { $regex: searchQuery, $options: 'i' } }
+                : {};
+
+            const totalProducts = await productsCollection.countDocuments(searchFilter);
             const totalPages = Math.ceil(totalProducts / limit);
 
             const products = await productsCollection
-                .find()
-                .sort(sortOptions) 
+                .find(searchFilter)
+                .sort(sortOptions)
                 .skip(skip)
                 .limit(limit)
                 .toArray();
@@ -61,7 +68,6 @@ async function run() {
                 totalProducts,
             });
         });
-
 
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
