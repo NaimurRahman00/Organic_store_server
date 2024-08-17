@@ -7,7 +7,7 @@ const app = express();
 
 // Middleware setup
 const corsOptions = {
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "https://organ-store.netlify.app", "https://organstore.vercel.app"],
     credentials: true,
     optionSuccessStatus: 200,
 };
